@@ -12,6 +12,7 @@ import pickle
 # Externals
 import yaml
 import numpy as np
+import time
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
@@ -22,6 +23,7 @@ import distributed
 
 def parse_args():
     """Parse command line arguments."""
+    hpo_warning = 'Flag overwrites config value if set, used for HPO and PBT runs primarily'
     parser = argparse.ArgumentParser('train.py')
     add_arg = parser.add_argument
     add_arg('config', nargs='?', default='configs/hello.yaml')
@@ -33,6 +35,18 @@ def parse_args():
     add_arg('--resume', action='store_true', help='Resume from last checkpoint')
     add_arg('--show-config', action='store_true')
     add_arg('--interactive', action='store_true')
+    add_arg('--load_checkpoint', type=str, default=None,
+            help='Location where checkpoint can be loaded from')
+    add_arg('--save_checkpoint', type=str, default=None,
+            help='Location to save a checkpoint')
+    add_arg('--real-weight', type=int, default=None,
+            help='class weight of real to fake edges for the loss. %s' % hpo_warning)
+    add_arg('--lr', type=float, default=None,
+            help='Learning rate. %s' % hpo_warning)
+    add_arg('--hidden-dim', type=int, default=None,
+            help='Hidden layer dimension size. %s' % hpo_warning)
+    add_arg('--n_iters', type=int, default=None,
+            help='Number of graph iterations. %s' % hpo_warning)
     return parser.parse_args()
 
 def config_logging(verbose, output_dir, append=False, rank=0):
@@ -42,7 +56,9 @@ def config_logging(verbose, output_dir, append=False, rank=0):
     stream_handler.setLevel(log_level)
     handlers = [stream_handler]
     if output_dir is not None:
-        log_file = os.path.join(output_dir, 'out_%i.log' % rank)
+        log_dir = "%s_%s" % (output_dir, time.strftime("%Y%m%d-%H%M%S"))
+        os.makedirs(log_dir, exist_ok=True)
+        log_file = os.path.join(log_dir, 'out_%i.log' % rank)
         mode = 'a' if append else 'w'
         file_handler = logging.FileHandler(log_file, mode=mode)
         file_handler.setLevel(log_level)
@@ -75,6 +91,24 @@ def save_config(config):
     with open(config_file, 'wb') as f:
         pickle.dump(config, f)
 
+        
+def update_config(config, args):
+    """
+    Updates config values with command line overrides. This is used primarily
+    for HPO and PBT runs where hyperparameters must be exposed via command line flags.
+    Returns the updated config.
+    """
+    if args.real_weight is not None:
+        config['data']['real_weight'] = args.real_weight
+    if args.lr is not None:
+        config['optimizer']['learning_rate'] = args.lr
+    if args.hidden_dim is not None:
+        config['model']['hidden_dim'] = args.hidden_dim
+    if args.n_iters is not None:
+        config['model']['n_graph_iters'] = args.n_iters
+
+    return config
+
 def main():
     """Main function"""
 
@@ -86,6 +120,7 @@ def main():
 
     # Load configuration
     config = load_config(args.config)
+    config = update_config(config, args)
     config['output_dir'] = os.path.expandvars(config.get('output_dir', None))
     os.makedirs(config['output_dir'], exist_ok=True)
 
@@ -121,11 +156,13 @@ def main():
     trainer = get_trainer(distributed_mode=args.distributed,
                           output_dir=config['output_dir'],
                           rank=rank, n_ranks=n_ranks,
-                          gpu=gpu, **config['trainer'])
+                          gpu=gpu, save_checkpoint=args.save_checkpoint,
+                          load_checkpoint=args.load_checkpoint, **config['trainer'])
 
     # Build the model and optimizer
     model_config = config.get('model', {})
     optimizer_config = config.get('optimizer', {})
+    logging.debug("Building model")
     trainer.build_model(optimizer_config=optimizer_config, **model_config)
     if rank == 0:
         trainer.print_model_summary()
@@ -135,6 +172,7 @@ def main():
         trainer.load_checkpoint()
 
     # Run the training
+    logging.debug("Training")
     summary = trainer.train(train_data_loader=train_data_loader,
                             valid_data_loader=valid_data_loader,
                             **config['training'])
@@ -158,6 +196,7 @@ def main():
         IPython.embed()
 
     if rank == 0:
+        print("FoM: %e" % summary['valid_loss'].min())
         logging.info('All done!')
 
 if __name__ == '__main__':

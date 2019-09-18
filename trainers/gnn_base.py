@@ -29,7 +29,8 @@ class GNNBaseTrainer(object):
     """
 
     def __init__(self, output_dir=None, gpu=None,
-                 distributed_mode=None, rank=0, n_ranks=1):
+                 distributed_mode=None, rank=0, n_ranks=1,
+                 save_checkpoint=None, load_checkpoint=None):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.output_dir = (os.path.expandvars(output_dir)
                            if output_dir is not None else None)
@@ -44,6 +45,8 @@ class GNNBaseTrainer(object):
         self.summary_file = None
         self.rank = rank
         self.n_ranks = n_ranks
+        self.save_checkpoint=save_checkpoint
+        self.load_checkpoint=load_checkpoint
 
     def _build_optimizer(self, parameters, name='Adam', learning_rate=0.001,
                          lr_scaling=None, lr_warmup_epochs=0, lr_decay_schedule=[],
@@ -126,7 +129,10 @@ class GNNBaseTrainer(object):
                           model=model_state_dict,
                           optimizer=self.optimizer.state_dict(),
                           lr_scheduler=self.lr_scheduler.state_dict())
-        checkpoint_dir = os.path.join(self.output_dir, 'checkpoints')
+        if self.save_checkpoint is not None:
+            checkpoint_dir = os.path.join(self.save_checkpoint, 'checkpoints')
+        else:
+            checkpoint_dir = os.path.join(self.output_dir, 'checkpoints')
         os.makedirs(checkpoint_dir, exist_ok=True)
         checkpoint_file = 'model_checkpoint_%03i.pth.tar' % checkpoint_id
         torch.save(checkpoint, os.path.join(checkpoint_dir, checkpoint_file))
@@ -141,7 +147,10 @@ class GNNBaseTrainer(object):
         self.summaries = pd.read_csv(summary_file)
 
         # Load the checkpoint
-        checkpoint_dir = os.path.join(self.output_dir, 'checkpoints')
+        if self.load_checkpoint is not None:
+            checkpoint_dir = os.path.join(self.load_checkpoint, 'checkpoints')
+        else:
+            checkpoint_dir = os.path.join(self.output_dir, 'checkpoints')
         if checkpoint_id == -1:
             # Find the last checkpoint
             last_checkpoint = sorted(os.listdir(checkpoint_dir))[-1]
@@ -185,6 +194,9 @@ class GNNBaseTrainer(object):
         if self.summaries is not None:
             start_epoch = self.summaries.epoch.max() + 1
 
+        patience = 0
+        best_loss = 99.
+
         # Loop over epochs
         for epoch in range(start_epoch, n_epochs):
             self.logger.info('Epoch %i' % epoch)
@@ -209,5 +221,11 @@ class GNNBaseTrainer(object):
             self.save_summary(summary)
             if self.output_dir is not None and self.rank == 0:
                 self.write_checkpoint(checkpoint_id=epoch)
+            
+            if self.summaries['valid_loss'].min() < best_loss:
+                best_loss = self.summaries['valid_loss'].min()
+                patience = 0
+            elif patience > 5:
+                break
 
         return self.summaries
