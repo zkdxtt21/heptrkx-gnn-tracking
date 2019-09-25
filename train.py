@@ -35,10 +35,8 @@ def parse_args():
     add_arg('--resume', action='store_true', help='Resume from last checkpoint')
     add_arg('--show-config', action='store_true')
     add_arg('--interactive', action='store_true')
-    add_arg('--load_checkpoint', type=str, default=None,
-            help='Location where checkpoint can be loaded from')
-    add_arg('--save_checkpoint', type=str, default=None,
-            help='Location to save a checkpoint')
+    add_arg('--pbt_checkpoint', type=str, default=None,
+            help='Location of the checkpoint, used by pbt to specify which checkpoint to use.')
     add_arg('--real-weight', type=int, default=None,
             help='class weight of real to fake edges for the loss. %s' % hpo_warning)
     add_arg('--lr', type=float, default=None,
@@ -156,8 +154,8 @@ def main():
     trainer = get_trainer(distributed_mode=args.distributed,
                           output_dir=config['output_dir'],
                           rank=rank, n_ranks=n_ranks,
-                          gpu=gpu, save_checkpoint=args.save_checkpoint,
-                          load_checkpoint=args.load_checkpoint, **config['trainer'])
+                          gpu=gpu, pbt_checkpoint=args.pbt_checkpoint,
+                          **config['trainer'])
 
     # Build the model and optimizer
     model_config = config.get('model', {})

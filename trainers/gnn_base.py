@@ -30,7 +30,7 @@ class GNNBaseTrainer(object):
 
     def __init__(self, output_dir=None, gpu=None,
                  distributed_mode=None, rank=0, n_ranks=1,
-                 save_checkpoint=None, load_checkpoint=None):
+                 pbt_checkpoint=None):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.output_dir = (os.path.expandvars(output_dir)
                            if output_dir is not None else None)
@@ -45,8 +45,8 @@ class GNNBaseTrainer(object):
         self.summary_file = None
         self.rank = rank
         self.n_ranks = n_ranks
-        self.pbt_save_checkpoint=save_checkpoint
-        self.pbt_load_checkpoint=load_checkpoint
+        # Implies that pbt is being run, changing the behavior of checkpointing
+        self.pbt_checkpoint=pbt_checkpoint
 
     def _build_optimizer(self, parameters, name='Adam', learning_rate=0.001,
                          lr_scaling=None, lr_warmup_epochs=0, lr_decay_schedule=[],
@@ -129,8 +129,8 @@ class GNNBaseTrainer(object):
                           model=model_state_dict,
                           optimizer=self.optimizer.state_dict(),
                           lr_scheduler=self.lr_scheduler.state_dict())
-        if self.pbt_save_checkpoint is not None:
-            checkpoint_dir = os.path.join(self.pbt_save_checkpoint, 'checkpoints')
+        if self.pbt_checkpoint is not None:
+            checkpoint_dir = os.path.join(self.pbt_checkpoint, 'checkpoints')
         else:
             checkpoint_dir = os.path.join(self.output_dir, 'checkpoints')
         os.makedirs(checkpoint_dir, exist_ok=True)
@@ -142,18 +142,18 @@ class GNNBaseTrainer(object):
         assert self.output_dir is not None
 
         # Load the checkpoint
-        if self.pbt_load_checkpoint is not None:
-            checkpoint_dir = os.path.join(self.pbt_load_checkpoint, 'checkpoints')
+        if self.pbt_checkpoint is not None:
+            checkpoint_dir = os.path.join(self.pbt_checkpoint, 'checkpoints')
         else:
             checkpoint_dir = os.path.join(self.output_dir, 'checkpoints')
-        if self.pbt_load_checkpoint is not None and not os.path.exists(checkpoint_dir):
+        if self.pbt_checkpoint is not None and not os.path.exists(checkpoint_dir):
             logging.debug("Not loading a checkpoint, assuming PBT. If this is not the case, ")
-            logging.debug("ensure output_dir is set properly and save_checkpoint and load_checkpoint ")
-            logging.debug("are not set, as they are specific to PBT runs")
+            logging.debug("ensure output_dir is set properly and pbt_checkpoint ")
+            logging.debug("is not set, as it is specific to PBT runs")
             return
 
-        # Load the summaries
-        if self.pbt_load_checkpoint is None:
+        # Load the summaries, if not in pbt mode
+        if self.pbt_checkpoint is None:
             summary_file = os.path.join(self.output_dir, 'summaries_%i.csv' % self.rank)
             logging.info('Reloading summary at %s', summary_file)
             self.summaries = pd.read_csv(summary_file)

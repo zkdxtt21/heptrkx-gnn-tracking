@@ -31,7 +31,7 @@ else:
 
 cmd = "python train.py %s --resume --ranks-per-node 1 -v --gpu 0" % config_file
 if args.run_pbt:
-    cmd += " --load_checkpoint @checkpoint --save_checkpoint @checkpoint"
+    cmd += " --pbt_checkpoint @checkpoint"
 
 timestr = time.strftime("%Y%m%d-%H%M%S")
 evaluator = hpo.Evaluator(cmd,
