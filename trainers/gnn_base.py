@@ -45,8 +45,8 @@ class GNNBaseTrainer(object):
         self.summary_file = None
         self.rank = rank
         self.n_ranks = n_ranks
-        self.save_checkpoint=save_checkpoint
-        self.load_checkpoint=load_checkpoint
+        self.pbt_save_checkpoint=save_checkpoint
+        self.pbt_load_checkpoint=load_checkpoint
 
     def _build_optimizer(self, parameters, name='Adam', learning_rate=0.001,
                          lr_scaling=None, lr_warmup_epochs=0, lr_decay_schedule=[],
@@ -129,8 +129,8 @@ class GNNBaseTrainer(object):
                           model=model_state_dict,
                           optimizer=self.optimizer.state_dict(),
                           lr_scheduler=self.lr_scheduler.state_dict())
-        if self.save_checkpoint is not None:
-            checkpoint_dir = os.path.join(self.save_checkpoint, 'checkpoints')
+        if self.pbt_save_checkpoint is not None:
+            checkpoint_dir = os.path.join(self.pbt_save_checkpoint, 'checkpoints')
         else:
             checkpoint_dir = os.path.join(self.output_dir, 'checkpoints')
         os.makedirs(checkpoint_dir, exist_ok=True)
@@ -141,23 +141,30 @@ class GNNBaseTrainer(object):
         """Load a model checkpoint"""
         assert self.output_dir is not None
 
-        # Load the summaries
-        summary_file = os.path.join(self.output_dir, 'summaries_%i.csv' % self.rank)
-        logging.info('Reloading summary at %s', summary_file)
-        self.summaries = pd.read_csv(summary_file)
-
         # Load the checkpoint
-        if self.load_checkpoint is not None:
-            checkpoint_dir = os.path.join(self.load_checkpoint, 'checkpoints')
+        if self.pbt_load_checkpoint is not None:
+            checkpoint_dir = os.path.join(self.pbt_load_checkpoint, 'checkpoints')
         else:
             checkpoint_dir = os.path.join(self.output_dir, 'checkpoints')
+        if self.pbt_load_checkpoint is not None and not os.path.exists(checkpoint_dir):
+            logging.debug("Not loading a checkpoint, assuming PBT. If this is not the case, ")
+            logging.debug("ensure output_dir is set properly and save_checkpoint and load_checkpoint ")
+            logging.debug("are not set, as they are specific to PBT runs")
+            return
+
+        # Load the summaries
+        if self.pbt_load_checkpoint is None:
+            summary_file = os.path.join(self.output_dir, 'summaries_%i.csv' % self.rank)
+            logging.info('Reloading summary at %s', summary_file)
+            self.summaries = pd.read_csv(summary_file)
+
         if checkpoint_id == -1:
             # Find the last checkpoint
             last_checkpoint = sorted(os.listdir(checkpoint_dir))[-1]
             pattern = 'model_checkpoint_(\d..).pth.tar'
             checkpoint_id = int(re.match(pattern, last_checkpoint).group(1))
         checkpoint_file = 'model_checkpoint_%03i.pth.tar' % checkpoint_id
-        logging.info('Reloading checkpoint at %s', checkpoint_file)
+        logging.info('Reloading checkpoint at %s', os.path.join(checkpoint_dir, checkpoint_file))
         checkpoint = torch.load(os.path.join(checkpoint_dir, checkpoint_file),
                                 map_location=self.device)
         # If using DistributedDataParallel, just load the wrapped model state
@@ -214,6 +221,7 @@ class GNNBaseTrainer(object):
             # Evaluate on this epoch
             if valid_data_loader is not None:
                 start_time = time.time()
+                print("RUNNING EVAL")
                 summary.update(self.evaluate(valid_data_loader))
                 summary['valid_time'] = time.time() - start_time
 

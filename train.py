@@ -196,7 +196,7 @@ def main():
         IPython.embed()
 
     if rank == 0:
-        print("FoM: %e" % summary['valid_loss'].min())
+        print("FoM: %e" % summary['valid_loss'][0])
         logging.info('All done!')
 
 if __name__ == '__main__':

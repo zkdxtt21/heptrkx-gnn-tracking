@@ -1,4 +1,4 @@
-output_dir: /lus/scratch/aheye/work/gnn/heptrkx/results/agnn_001
+output_dir: /lus/scratch/aheye/work/gnn/heptrkx/results/agnn_002
 
 trainer:
     name: gnn_sparse
@@ -6,7 +6,7 @@ trainer:
 data:
     name: hitgraphs_sparse
     input_dir: /lus/scratch/aheye/data/heptrkx/data/hitgraphs/hitgraphs_med_002
-    n_train: 100 #49152 #57344
+    n_train: 5000 #49152 #57344
     n_valid: 4096
     real_weight: 5 #6.25  # 0.5 / 0.08
     batch_size: 4
