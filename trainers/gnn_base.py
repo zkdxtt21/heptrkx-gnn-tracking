@@ -95,7 +95,8 @@ class GNNBaseTrainer(object):
 
         # PyTorch distributed data parallel
         if self.distributed_mode in ['ddp-file', 'ddp-mpi']:
-            self.model = DistributedDataParallel(self.model, device_ids=[self.gpu])
+            device_ids = [self.gpu] if self.gpu is not None else None
+            self.model = DistributedDataParallel(self.model, device_ids=device_ids)
 
         # Construct the loss function
         self.loss_func = getattr(nn.functional, loss_func)
@@ -159,10 +160,7 @@ class GNNBaseTrainer(object):
             self.summaries = pd.read_csv(summary_file)
 
         if checkpoint_id == -1:
-            # Find the last checkpoint
-            last_checkpoint = sorted(os.listdir(checkpoint_dir))[-1]
-            pattern = 'model_checkpoint_(\d..).pth.tar'
-            checkpoint_id = int(re.match(pattern, last_checkpoint).group(1))
+            checkpoint_id = self.summaries.epoch.iloc[-1]
         checkpoint_file = 'model_checkpoint_%03i.pth.tar' % checkpoint_id
         logging.info('Reloading checkpoint at %s', os.path.join(checkpoint_dir, checkpoint_file))
         checkpoint = torch.load(os.path.join(checkpoint_dir, checkpoint_file),
@@ -215,6 +213,7 @@ class GNNBaseTrainer(object):
             # Train on this epoch
             start_time = time.time()
             summary = self.train_epoch(train_data_loader)
+            self.lr_scheduler.step()
             summary['epoch'] = epoch
             summary['train_time'] = time.time() - start_time
 

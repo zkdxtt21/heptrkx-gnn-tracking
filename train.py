@@ -12,7 +12,7 @@ import pickle
 # Externals
 import yaml
 import numpy as np
-import time
+import torch
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
@@ -35,6 +35,10 @@ def parse_args():
     add_arg('--resume', action='store_true', help='Resume from last checkpoint')
     add_arg('--show-config', action='store_true')
     add_arg('--interactive', action='store_true')
+    add_arg('--output-dir', help='override output_dir setting')
+    add_arg('--seed', type=int, default=0, help='random seed')
+    # Added as a way to access the config value for Cray HPO/PBT
+    add_arg('--crayai', action='store_true')
     add_arg('--pbt_checkpoint', type=str, default=None,
             help='Location of the checkpoint, used by pbt to specify which checkpoint to use.')
     add_arg('--real-weight', type=int, default=None,
@@ -54,7 +58,7 @@ def config_logging(verbose, output_dir, append=False, rank=0):
     stream_handler.setLevel(log_level)
     handlers = [stream_handler]
     if output_dir is not None:
-        log_dir = "%s_%s" % (output_dir, time.strftime("%Y%m%d-%H%M%S"))
+        log_dir = output_dir
         os.makedirs(log_dir, exist_ok=True)
         log_file = os.path.join(log_dir, 'out_%i.log' % rank)
         mode = 'a' if append else 'w'
@@ -78,9 +82,16 @@ def init_workers(dist_mode):
         return init_workers_cray()
     return 0, 1
 
-def load_config(config_file):
+def load_config(config_file, output_dir=None, **kwargs):
     with open(config_file) as f:
-        return yaml.load(f, Loader=yaml.FullLoader)
+        config = yaml.load(f, Loader=yaml.FullLoader)
+    # Update config from command line, and expand paths
+    if output_dir is not None:
+        config['output_dir'] = output_dir
+    config['output_dir'] = os.path.expandvars(config['output_dir'])
+    for key, val in kwargs.items():
+        config[key] = val
+    return config
 
 def save_config(config):
     output_dir = config['output_dir']
@@ -117,9 +128,9 @@ def main():
     rank, n_ranks = init_workers(args.distributed)
 
     # Load configuration
-    config = load_config(args.config)
+    config = load_config(args.config, output_dir=args.output_dir,
+                         n_ranks=n_ranks, crayai=args.crayai)
     config = update_config(config, args)
-    config['output_dir'] = os.path.expandvars(config.get('output_dir', None))
     os.makedirs(config['output_dir'], exist_ok=True)
 
     # Setup logging
@@ -131,6 +142,14 @@ def main():
     if rank == 0:
         logging.info('Configuration: %s', config)
         logging.info('Saving job outputs to %s', config['output_dir'])
+        if args.distributed is not None:
+            logging.info('Using distributed mode: %s', args.distributed)
+
+    # Reproducible training
+    torch.manual_seed(args.seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    np.random.seed(args.seed + 10)
 
     # Save configuration in the outptut directory
     if rank == 0:
@@ -140,7 +159,8 @@ def main():
     is_distributed = (args.distributed is not None)
     # Workaround because multi-process I/O not working with MPI backend
     if args.distributed in ['ddp-mpi', 'cray']:
-        logging.info('Disabling I/O workers because of MPI issue')
+        if rank == 0:
+            logging.info('Disabling I/O workers because of MPI issue')
         config['data']['n_workers'] = 0
     train_data_loader, valid_data_loader = get_data_loaders(
         distributed=is_distributed, rank=rank, n_ranks=n_ranks, **config['data'])
@@ -150,7 +170,8 @@ def main():
 
     # Load the trainer
     gpu = (rank % args.ranks_per_node) if args.rank_gpu else args.gpu
-    logging.info('Choosing GPU %s', gpu)
+    if gpu is not None:
+        logging.info('Choosing GPU %s', gpu)
     trainer = get_trainer(distributed_mode=args.distributed,
                           output_dir=config['output_dir'],
                           rank=rank, n_ranks=n_ranks,
@@ -194,7 +215,8 @@ def main():
         IPython.embed()
 
     if rank == 0:
-        print("FoM: %e" % summary['valid_loss'][0])
+        if args.crayai:
+            print("FoM: %e" % summary['valid_loss'][0])
         logging.info('All done!')
 
 if __name__ == '__main__':
