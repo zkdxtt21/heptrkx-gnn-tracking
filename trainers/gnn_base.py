@@ -160,7 +160,13 @@ class GNNBaseTrainer(object):
             self.summaries = pd.read_csv(summary_file)
 
         if checkpoint_id == -1:
-            checkpoint_id = self.summaries.epoch.iloc[-1]
+            if self.pbt_checkpoint is not None:
+                # There should only be 1
+                last_checkpoint = os.listdir(checkpoint_dir)[-1]
+                pattern = 'model_checkpoint_(\d..).pth.tar'
+                checkpoint_id = int(re.match(pattern, last_checkpoint).group(1))
+            else:
+                checkpoint_id = self.summaries.epoch.iloc[-1]
         checkpoint_file = 'model_checkpoint_%03i.pth.tar' % checkpoint_id
         logging.info('Reloading checkpoint at %s', os.path.join(checkpoint_dir, checkpoint_file))
         checkpoint = torch.load(os.path.join(checkpoint_dir, checkpoint_file),
