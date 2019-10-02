@@ -44,7 +44,8 @@ class HitGraphDataset(Dataset):
         w = y * self.real_weight + (1-y) * self.fake_weight
         return torch_geometric.data.Data(x=torch.from_numpy(x),
                                          edge_index=torch.from_numpy(edge_index),
-                                         y=torch.from_numpy(y), w=torch.from_numpy(w))
+                                         y=torch.from_numpy(y), w=torch.from_numpy(w),
+                                         i=index)
 
     def __len__(self):
         return len(self.filenames)

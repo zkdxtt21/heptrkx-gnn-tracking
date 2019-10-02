@@ -2,12 +2,15 @@
 This module defines a generic trainer for simple models and datasets.
 """
 
+# System
+import logging
+
 # Externals
 import torch
 
 # Locals
 from .gnn_base import GNNBaseTrainer
-from utils.checks import get_weight_norm
+from utils.checks import get_weight_norm, get_grad_norm
 
 class SparseGNNTrainer(GNNBaseTrainer):
     """Trainer code for sparse GNN."""
@@ -29,7 +32,14 @@ class SparseGNNTrainer(GNNBaseTrainer):
             batch_loss.backward()
             self.optimizer.step()
             sum_loss += batch_loss.item()
-            self.logger.debug('  train batch %i, loss %f', i, batch_loss.item())
+
+            # Dump additional debugging information
+            if self.logger.isEnabledFor(logging.DEBUG):
+                l1 = get_weight_norm(self.model, 1)
+                l2 = get_weight_norm(self.model, 2)
+                grad_norm = get_grad_norm(self.model)
+                self.logger.debug('  train batch %i loss %.4f l1 %.2f l2 %.4f grad %.3f idx %i',
+                                  i, batch_loss.item(), l1, l2, grad_norm, batch.i[0].item())
 
         # Summarize the epoch
         n_batches = i + 1
