@@ -206,7 +206,6 @@ class GNNBaseTrainer(object):
             start_epoch = self.summaries.epoch.max() + 1
 
         patience = 0
-        best_loss = 99.
 
         # Loop over epochs
         for epoch in range(start_epoch, n_epochs):
@@ -226,7 +225,6 @@ class GNNBaseTrainer(object):
             # Evaluate on this epoch
             if valid_data_loader is not None:
                 start_time = time.time()
-                print("RUNNING EVAL")
                 summary.update(self.evaluate(valid_data_loader))
                 summary['valid_time'] = time.time() - start_time
 
