@@ -47,6 +47,7 @@ def load_summaries(config):
     return pd.read_csv(summary_file)
 
 def load_model(config, reload_epoch):
+    """deprecated"""
     model_config = config['model']
     model_config.pop('loss_func', None)
     model = get_model(**model_config)
@@ -61,12 +62,13 @@ def load_model(config, reload_epoch):
 def get_dataset(config):
     return HitGraphDataset(get_input_dir(config))
 
-def get_test_data_loader(config, n_test=16):
+def get_test_data_loader(config, n_test=16, batch_size=1):
     # Take the test set from the back
     full_dataset = get_dataset(config)
     test_indices = len(full_dataset) - 1 - torch.arange(n_test)
-    test_dataset = Subset(full_dataset, test_indices)
-    return DataLoader(test_dataset, batch_size=1, collate_fn=Batch.from_data_list)
+    test_dataset = Subset(full_dataset, test_indices.tolist())
+    return DataLoader(test_dataset, batch_size=batch_size,
+                      collate_fn=Batch.from_data_list)
 
 def get_dense_dataset(config):
     return datasets.hitgraphs.HitGraphDataset(get_input_dir(config))
@@ -75,7 +77,7 @@ def get_dense_test_data_loader(config, n_test=16):
     # Take the test set from the back
     full_dataset = get_dense_dataset(config)
     test_indices = len(full_dataset) - 1 - torch.arange(n_test)
-    test_dataset = Subset(full_dataset, test_indices)
+    test_dataset = Subset(full_dataset, test_indices.tolist())
     return DataLoader(test_dataset, batch_size=1,
                       collate_fn=datasets.hitgraphs.collate_fn)
 
