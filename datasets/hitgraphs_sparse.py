@@ -30,8 +30,8 @@ class HitGraphDataset(Dataset):
             filenames = self.metadata.file.values
         elif input_dir is not None:
             input_dir = os.path.expandvars(input_dir)
-            filenames = [os.path.join(input_dir, f) for f in os.listdir(input_dir)
-                         if f.startswith('event') and not f.endswith('_ID.npz')]
+            filenames = sorted([os.path.join(input_dir, f) for f in os.listdir(input_dir)
+                                if f.startswith('event') and not f.endswith('_ID.npz')])
         else:
             raise Exception('Must provide either input_dir or filelist to HitGraphDataset')
         self.filenames = filenames if n_samples is None else filenames[:n_samples]
