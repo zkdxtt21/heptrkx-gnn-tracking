@@ -36,7 +36,7 @@ class HitGraphDataset(Dataset):
             raise Exception('Must provide either input_dir or filelist to HitGraphDataset')
         self.filenames = filenames if n_samples is None else filenames[:n_samples]
         self.real_weight = real_weight
-        self.fake_weight = real_weight / (2 * real_weight - 1)
+        self.fake_weight = 1 #real_weight / (2 * real_weight - 1)
 
     def __getitem__(self, index):
         x, edge_index, y = load_graph(self.filenames[index])
