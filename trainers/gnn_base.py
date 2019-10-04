@@ -200,7 +200,8 @@ class GNNBaseTrainer(object):
         """Virtual method to apply a model"""
         raise NotImplementedError
 
-    def train(self, train_data_loader, n_epochs, valid_data_loader=None):
+    def train(self, train_data_loader, valid_data_loader=None,
+              n_epochs=-1, n_total_epochs=0):
         """Run the model training"""
 
         # Determine initial epoch in case resuming training
@@ -208,8 +209,13 @@ class GNNBaseTrainer(object):
         if self.summaries is not None:
             start_epoch = self.summaries.epoch.max() + 1
 
+        # Determine how many epochs we run in this call
+        end_epoch = n_total_epochs
+        if n_epochs >= 0:
+            end_epoch = min(start_epoch+n_epochs, n_total_epochs)
+
         # Loop over epochs
-        for epoch in range(start_epoch, n_epochs):
+        for epoch in range(start_epoch, end_epoch):
             self.logger.info('Epoch %i' % epoch)
             try:
                 train_data_loader.sampler.set_epoch(epoch)

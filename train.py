@@ -41,6 +41,7 @@ def parse_args():
     add_arg('--crayai', action='store_true')
     add_arg('--pbt_checkpoint', type=str, default=None,
             help='Location of the checkpoint, used by pbt to specify which checkpoint to use.')
+    add_arg('--n-epochs', type=int, help='Specify subset of total epochs to run')
     add_arg('--real-weight', type=float, default=None,
             help='class weight of real to fake edges for the loss. %s' % hpo_warning)
     add_arg('--lr', type=float, default=None,
@@ -115,6 +116,8 @@ def update_config(config, args):
         config['model']['hidden_dim'] = args.hidden_dim
     if args.n_iters is not None:
         config['model']['n_graph_iters'] = args.n_iters
+    if args.n_epochs is not None:
+        config['training']['n_epochs'] = args.n_epochs
 
     return config
 
