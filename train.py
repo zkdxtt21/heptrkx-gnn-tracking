@@ -37,8 +37,6 @@ def parse_args():
     add_arg('--interactive', action='store_true')
     add_arg('--output-dir', help='override output_dir setting')
     add_arg('--seed', type=int, default=0, help='random seed')
-    add_arg('--pbt_checkpoint', type=str, default=None,
-            help='Location of the checkpoint, used by pbt to specify which checkpoint to use.')
     add_arg('--fom', default=None, choices=['last', 'best'],
             help='Print figure of merit for HPO/PBT')
     add_arg('--n-epochs', type=int, help='Specify subset of total epochs to run')
@@ -178,8 +176,7 @@ def main():
     trainer = get_trainer(distributed_mode=args.distributed,
                           output_dir=config['output_dir'],
                           rank=rank, n_ranks=n_ranks,
-                          gpu=gpu, pbt_checkpoint=args.pbt_checkpoint,
-                          **config['trainer'])
+                          gpu=gpu, **config['trainer'])
 
     # Build the model and optimizer
     model_config = config.get('model', {})
