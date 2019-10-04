@@ -29,7 +29,8 @@ class GNNBaseTrainer(object):
     """
 
     def __init__(self, output_dir=None, gpu=None,
-                 distributed_mode=None, rank=0, n_ranks=1):
+                 distributed_mode=None, rank=0, n_ranks=1,
+                 pbt_checkpoint=None):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.output_dir = (os.path.expandvars(output_dir)
                            if output_dir is not None else None)
@@ -44,6 +45,8 @@ class GNNBaseTrainer(object):
         self.summary_file = None
         self.rank = rank
         self.n_ranks = n_ranks
+        # Implies that pbt is being run, changing the behavior of checkpointing
+        self.pbt_checkpoint=pbt_checkpoint
 
     def _build_optimizer(self, parameters, name='Adam', learning_rate=0.001,
                          lr_scaling=None, lr_warmup_epochs=0, lr_decay_schedule=[],
@@ -127,7 +130,10 @@ class GNNBaseTrainer(object):
                           model=model_state_dict,
                           optimizer=self.optimizer.state_dict(),
                           lr_scheduler=self.lr_scheduler.state_dict())
-        checkpoint_dir = os.path.join(self.output_dir, 'checkpoints')
+        if self.pbt_checkpoint is not None:
+            checkpoint_dir = os.path.join(self.pbt_checkpoint, 'checkpoints')
+        else:
+            checkpoint_dir = os.path.join(self.output_dir, 'checkpoints')
         os.makedirs(checkpoint_dir, exist_ok=True)
         checkpoint_file = 'model_checkpoint_%03i.pth.tar' % checkpoint_id
         torch.save(checkpoint, os.path.join(checkpoint_dir, checkpoint_file))
@@ -136,17 +142,33 @@ class GNNBaseTrainer(object):
         """Load a model checkpoint"""
         assert self.output_dir is not None
 
-        # Load the summaries
-        summary_file = os.path.join(self.output_dir, 'summaries_%i.csv' % self.rank)
-        logging.info('Reloading summary at %s', summary_file)
-        self.summaries = pd.read_csv(summary_file)
+        # Load the checkpoint
+        if self.pbt_checkpoint is not None:
+            checkpoint_dir = os.path.join(self.pbt_checkpoint, 'checkpoints')
+        else:
+            checkpoint_dir = os.path.join(self.output_dir, 'checkpoints')
+        if self.pbt_checkpoint is not None and not os.path.exists(checkpoint_dir):
+            logging.debug("Not loading a checkpoint, assuming PBT. If this is not the case, ")
+            logging.debug("ensure output_dir is set properly and pbt_checkpoint ")
+            logging.debug("is not set, as it is specific to PBT runs")
+            return
 
-        # Load the specified checkpoint or last one from summaries
-        checkpoint_dir = os.path.join(self.output_dir, 'checkpoints')
+        # Load the summaries, if not in pbt mode
+        if self.pbt_checkpoint is None:
+            summary_file = os.path.join(self.output_dir, 'summaries_%i.csv' % self.rank)
+            logging.info('Reloading summary at %s', summary_file)
+            self.summaries = pd.read_csv(summary_file)
+
         if checkpoint_id == -1:
-            checkpoint_id = self.summaries.epoch.iloc[-1]
+            if self.pbt_checkpoint is not None:
+                # There should only be 1
+                last_checkpoint = os.listdir(checkpoint_dir)[-1]
+                pattern = 'model_checkpoint_(\d..).pth.tar'
+                checkpoint_id = int(re.match(pattern, last_checkpoint).group(1))
+            else:
+                checkpoint_id = self.summaries.epoch.iloc[-1]
         checkpoint_file = 'model_checkpoint_%03i.pth.tar' % checkpoint_id
-        logging.info('Reloading checkpoint at %s', checkpoint_file)
+        logging.info('Reloading checkpoint at %s', os.path.join(checkpoint_dir, checkpoint_file))
         checkpoint = torch.load(os.path.join(checkpoint_dir, checkpoint_file),
                                 map_location=self.device)
         # If using DistributedDataParallel, just load the wrapped model state
@@ -183,6 +205,8 @@ class GNNBaseTrainer(object):
         if self.summaries is not None:
             start_epoch = self.summaries.epoch.max() + 1
 
+        patience = 0
+
         # Loop over epochs
         for epoch in range(start_epoch, n_epochs):
             self.logger.info('Epoch %i' % epoch)
@@ -208,5 +232,11 @@ class GNNBaseTrainer(object):
             self.save_summary(summary)
             if self.output_dir is not None and self.rank == 0:
                 self.write_checkpoint(checkpoint_id=epoch)
+            
+            if self.summaries['valid_loss'].min() < best_loss:
+                best_loss = self.summaries['valid_loss'].min()
+                patience = 0
+            elif patience > 5:
+                break
 
         return self.summaries
