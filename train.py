@@ -37,10 +37,10 @@ def parse_args():
     add_arg('--interactive', action='store_true')
     add_arg('--output-dir', help='override output_dir setting')
     add_arg('--seed', type=int, default=0, help='random seed')
-    # Added as a way to access the config value for Cray HPO/PBT
-    add_arg('--crayai', action='store_true')
     add_arg('--pbt_checkpoint', type=str, default=None,
             help='Location of the checkpoint, used by pbt to specify which checkpoint to use.')
+    add_arg('--fom', default=None, choices=['last', 'best'],
+            help='Print figure of merit for HPO/PBT')
     add_arg('--n-epochs', type=int, help='Specify subset of total epochs to run')
     add_arg('--real-weight', type=float, default=None,
             help='class weight of real to fake edges for the loss. %s' % hpo_warning)
@@ -132,7 +132,7 @@ def main():
 
     # Load configuration
     config = load_config(args.config, output_dir=args.output_dir,
-                         n_ranks=n_ranks, crayai=args.crayai)
+                         n_ranks=n_ranks)
     config = update_config(config, args)
     os.makedirs(config['output_dir'], exist_ok=True)
 
@@ -211,15 +211,21 @@ def main():
         logging.info('Valid samples %g time %g s rate %g samples/s',
                      n_valid_samples, valid_time, n_valid_samples / valid_time)
 
+    # Print figure of merit for Cray-HPO
+    if rank == 0:
+        if args.fom == 'last':
+            print('FoM: %e' % summary['valid_loss'].iloc[-1])
+        elif args.fom == 'best':
+            print('FoM: %e' % summary['valid_loss'].min())
+
     # Drop to IPython interactive shell
     if args.interactive and (rank == 0):
         logging.info('Starting IPython interactive session')
         import IPython
         IPython.embed()
 
+    # All done
     if rank == 0:
-        if args.crayai:
-            print("FoM: %e" % summary['valid_loss'][0])
         logging.info('All done!')
 
 if __name__ == '__main__':
