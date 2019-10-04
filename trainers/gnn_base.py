@@ -205,8 +205,6 @@ class GNNBaseTrainer(object):
         if self.summaries is not None:
             start_epoch = self.summaries.epoch.max() + 1
 
-        patience = 0
-
         # Loop over epochs
         for epoch in range(start_epoch, n_epochs):
             self.logger.info('Epoch %i' % epoch)
@@ -233,10 +231,4 @@ class GNNBaseTrainer(object):
             if self.output_dir is not None and self.rank == 0:
                 self.write_checkpoint(checkpoint_id=epoch)
             
-            if self.summaries['valid_loss'].min() < best_loss:
-                best_loss = self.summaries['valid_loss'].min()
-                patience = 0
-            elif patience > 5:
-                break
-
         return self.summaries
