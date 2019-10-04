@@ -41,7 +41,7 @@ def parse_args():
     add_arg('--crayai', action='store_true')
     add_arg('--pbt_checkpoint', type=str, default=None,
             help='Location of the checkpoint, used by pbt to specify which checkpoint to use.')
-    add_arg('--real-weight', type=int, default=None,
+    add_arg('--real-weight', type=float, default=None,
             help='class weight of real to fake edges for the loss. %s' % hpo_warning)
     add_arg('--lr', type=float, default=None,
             help='Learning rate. %s' % hpo_warning)
