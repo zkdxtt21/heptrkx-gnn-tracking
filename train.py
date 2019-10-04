@@ -48,7 +48,7 @@ def parse_args():
             help='Learning rate. %s' % hpo_warning)
     add_arg('--hidden-dim', type=int, default=None,
             help='Hidden layer dimension size. %s' % hpo_warning)
-    add_arg('--n_iters', type=int, default=None,
+    add_arg('--n-graph-iters', type=int, default=None,
             help='Number of graph iterations. %s' % hpo_warning)
     return parser.parse_args()
 
@@ -114,8 +114,8 @@ def update_config(config, args):
         config['optimizer']['learning_rate'] = args.lr
     if args.hidden_dim is not None:
         config['model']['hidden_dim'] = args.hidden_dim
-    if args.n_iters is not None:
-        config['model']['n_graph_iters'] = args.n_iters
+    if args.n_graph_iters is not None:
+        config['model']['n_graph_iters'] = args.n_graph_iters
     if args.n_epochs is not None:
         config['training']['n_epochs'] = args.n_epochs
 
