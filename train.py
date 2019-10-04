@@ -104,7 +104,7 @@ def save_config(config):
         
 def update_config(config, args):
     """
-    Updates config values with command line overrides. This is used primarily
+    Updates config values with command line overrides. This is needed
     for HPO and PBT runs where hyperparameters must be exposed via command line flags.
     Returns the updated config.
     """
@@ -184,7 +184,7 @@ def main():
     # Build the model and optimizer
     model_config = config.get('model', {})
     optimizer_config = config.get('optimizer', {})
-    logging.debug("Building model")
+    logging.debug('Building model')
     trainer.build_model(optimizer_config=optimizer_config, **model_config)
     if rank == 0:
         trainer.print_model_summary()
@@ -194,7 +194,7 @@ def main():
         trainer.load_checkpoint()
 
     # Run the training
-    logging.debug("Training")
+    logging.debug('Training')
     summary = trainer.train(train_data_loader=train_data_loader,
                             valid_data_loader=valid_data_loader,
                             **config['training'])
