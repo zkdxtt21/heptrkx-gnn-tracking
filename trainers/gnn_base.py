@@ -156,6 +156,9 @@ class GNNBaseTrainer(object):
         # Load the summaries, if not in pbt mode
         if self.pbt_checkpoint is None:
             summary_file = os.path.join(self.output_dir, 'summaries_%i.csv' % self.rank)
+            if not os.path.exists(summary_file):
+                logging.info('Summary file does not exist. Will not load checkpoint')
+                return
             logging.info('Reloading summary at %s', summary_file)
             self.summaries = pd.read_csv(summary_file)
 
