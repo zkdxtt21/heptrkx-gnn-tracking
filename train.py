@@ -39,6 +39,7 @@ def parse_args():
     add_arg('--seed', type=int, default=0, help='random seed')
     add_arg('--fom', default=None, choices=['last', 'best'],
             help='Print figure of merit for HPO/PBT')
+    add_arg('--batch-size', type=int, help='Override batch size. %s' % hpo_warning)
     add_arg('--n-epochs', type=int, help='Specify subset of total epochs to run')
     add_arg('--real-weight', type=float, default=None,
             help='class weight of real to fake edges for the loss. %s' % hpo_warning)
@@ -99,7 +100,6 @@ def save_config(config):
     with open(config_file, 'wb') as f:
         pickle.dump(config, f)
 
-        
 def update_config(config, args):
     """
     Updates config values with command line overrides. This is needed
@@ -114,6 +114,8 @@ def update_config(config, args):
         config['model']['hidden_dim'] = args.hidden_dim
     if args.n_graph_iters is not None:
         config['model']['n_graph_iters'] = args.n_graph_iters
+    if args.batch_size is not None:
+        config['data']['batch_size'] = args.batch_size
     if args.n_epochs is not None:
         config['training']['n_epochs'] = args.n_epochs
 
@@ -146,7 +148,7 @@ def main():
         if args.distributed is not None:
             logging.info('Using distributed mode: %s', args.distributed)
 
-    # Reproducible training
+    # Reproducible training [NOTE, doesn't full work on GPU]
     torch.manual_seed(args.seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
