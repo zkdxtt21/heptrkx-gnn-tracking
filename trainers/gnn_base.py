@@ -192,6 +192,8 @@ class GNNBaseTrainer(object):
         if n_epochs >= 0:
             end_epoch = min(start_epoch+n_epochs, n_total_epochs)
 
+        self.logger.debug('Will train epochs %i - %i', start_epoch, end_epoch)
+
         # Loop over epochs
         for epoch in range(start_epoch, end_epoch):
             self.logger.info('Epoch %i' % epoch)
