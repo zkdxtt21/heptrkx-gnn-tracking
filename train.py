@@ -49,6 +49,7 @@ def parse_args():
             help='Hidden layer dimension size. %s' % hpo_warning)
     add_arg('--n-graph-iters', type=int, default=None,
             help='Number of graph iterations. %s' % hpo_warning)
+    add_arg('--weight-decay', type=float)
     return parser.parse_args()
 
 def config_logging(verbose, output_dir, append=False, rank=0):
@@ -118,6 +119,8 @@ def update_config(config, args):
         config['data']['batch_size'] = args.batch_size
     if args.n_epochs is not None:
         config['training']['n_epochs'] = args.n_epochs
+    if args.weight_decay is not None:
+        config['optimizer']['weight_decay'] = args.weight_decay
 
     return config
 
