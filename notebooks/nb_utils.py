@@ -98,7 +98,7 @@ def apply_dense_model(model, data_loader):
     return preds, targets
 
 # Define our Metrics class as a namedtuple
-Metrics = namedtuple('Metrics', ['accuracy', 'precision', 'recall',
+Metrics = namedtuple('Metrics', ['accuracy', 'precision', 'recall', 'f1',
                                  'prc_precision', 'prc_recall', 'prc_thresh',
                                  'roc_fpr', 'roc_tpr', 'roc_thresh', 'roc_auc'])
 
@@ -108,15 +108,16 @@ def compute_metrics(preds, targets, threshold=0.5):
     # Decision boundary metrics
     y_pred, y_true = (preds > threshold), (targets > threshold)
     accuracy = sklearn.metrics.accuracy_score(y_true, y_pred)
-    precision = sklearn.metrics.precision_score(y_true, y_pred)
-    recall = sklearn.metrics.recall_score(y_true, y_pred)
+    precision, recall, f1, support = sklearn.metrics.precision_recall_fscore_support(y_true, y_pred, average='binary')
+    #precision = sklearn.metrics.precision_score(y_true, y_pred)
+    #recall = sklearn.metrics.recall_score(y_true, y_pred)
     # Precision recall curves
     prc_precision, prc_recall, prc_thresh = sklearn.metrics.precision_recall_curve(y_true, preds)
     # ROC curve
     roc_fpr, roc_tpr, roc_thresh = sklearn.metrics.roc_curve(y_true, preds)
     roc_auc = sklearn.metrics.auc(roc_fpr, roc_tpr)
     # Organize metrics into a namedtuple
-    return Metrics(accuracy=accuracy, precision=precision, recall=recall,
+    return Metrics(accuracy=accuracy, precision=precision, recall=recall, f1=f1,
                    prc_precision=prc_precision, prc_recall=prc_recall, prc_thresh=prc_thresh,
                    roc_fpr=roc_fpr, roc_tpr=roc_tpr, roc_thresh=roc_thresh, roc_auc=roc_auc)
 
