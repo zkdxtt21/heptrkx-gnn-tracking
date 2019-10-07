@@ -21,7 +21,7 @@ class EdgeNetwork(nn.Module):
     and applies some fully-connected network layers with a final
     sigmoid activation.
     """
-    def __init__(self, input_dim, hidden_dim=8, hidden_activation=nn.Tanh,
+    def __init__(self, input_dim, hidden_dim=8, hidden_activation='Tanh',
                  layer_norm=True):
         super(EdgeNetwork, self).__init__()
         self.network = make_mlp(input_dim*2,
@@ -45,7 +45,7 @@ class NodeNetwork(nn.Module):
     them with the node's previous features in a fully-connected
     network to compute the new features.
     """
-    def __init__(self, input_dim, output_dim, hidden_activation=nn.Tanh,
+    def __init__(self, input_dim, output_dim, hidden_activation='Tanh',
                  layer_norm=True):
         super(NodeNetwork, self).__init__()
         self.network = make_mlp(input_dim*3, [output_dim]*4,
@@ -67,7 +67,7 @@ class GNNSegmentClassifier(nn.Module):
     Consists of an input network, an edge network, and a node network.
     """
     def __init__(self, input_dim=3, hidden_dim=8, n_graph_iters=3,
-                 hidden_activation=nn.Tanh, layer_norm=True):
+                 hidden_activation='Tanh', layer_norm=True):
         super(GNNSegmentClassifier, self).__init__()
         self.n_graph_iters = n_graph_iters
         # Setup the input network
