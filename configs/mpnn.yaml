@@ -17,6 +17,7 @@ model:
     input_dim: 3
     hidden_node_dim: 64
     hidden_edge_dim: 64
+    hidden_activation: ReLU
     n_graph_iters: 8
     layer_norm: true
     loss_func: binary_cross_entropy_with_logits
