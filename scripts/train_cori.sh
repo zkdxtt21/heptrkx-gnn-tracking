@@ -15,3 +15,6 @@ mkdir -p logs
 
 # Run training
 srun -l -u python train.py -d ddp-mpi $@
+
+# Run training with pytorch bottleneck profiler
+#srun python -m torch.utils.bottleneck train.py $@
