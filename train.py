@@ -39,6 +39,8 @@ def parse_args():
     add_arg('--seed', type=int, default=0, help='random seed')
     add_arg('--fom', default=None, choices=['last', 'best'],
             help='Print figure of merit for HPO/PBT')
+    add_arg('--n-train', type=int, help='Override number of training samples')
+    add_arg('--n-valid', type=int, help='Override number of validation samples')
     add_arg('--batch-size', type=int, help='Override batch size. %s' % hpo_warning)
     add_arg('--n-epochs', type=int, help='Specify subset of total epochs to run')
     add_arg('--real-weight', type=float, default=None,
@@ -103,10 +105,14 @@ def save_config(config):
 
 def update_config(config, args):
     """
-    Updates config values with command line overrides. This is needed
-    for HPO and PBT runs where hyperparameters must be exposed via command line flags.
+    Updates config values with command line overrides. This is needed for HPO
+    and PBT runs where hyperparameters must be exposed via command line flags.
     Returns the updated config.
     """
+    if args.n_train is not None:
+        config['data']['n_train'] = args.n_train
+    if args.n_valid is not None:
+        config['data']['n_valid'] = args.n_valid
     if args.real_weight is not None:
         config['data']['real_weight'] = args.real_weight
     if args.lr is not None:
