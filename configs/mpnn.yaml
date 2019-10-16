@@ -13,7 +13,7 @@ data:
     n_workers: 4
 
 model:
-    name: resmpnn
+    name: mpnn
     input_dim: 3
     hidden_node_dim: 64
     hidden_edge_dim: 64
