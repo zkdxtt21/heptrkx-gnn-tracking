@@ -1,6 +1,6 @@
 """
 Module containing a pytorch graph network implementation modeled after
-Xiangyang's graph_nets implementation and DeepMind's InteractionNetwork.
+DeepMind's InteractionNetwork with Residual connections.
 """
 
 # Externals
@@ -33,17 +33,17 @@ class GNN(nn.Module):
         self.node_encoder = make_mlp(input_dim, [hidden_node_dim]*2)
 
         # The edge network computes new edge features from connected nodes
-        self.edge_network = make_mlp(2 * (hidden_node_dim + input_dim),
-                                     [hidden_edge_dim] * 4,
+        self.edge_network = make_mlp(2*hidden_node_dim,
+                                     [hidden_edge_dim]*4,
                                      layer_norm=layer_norm)
 
         # The node network computes new node features
-        self.node_network = make_mlp(hidden_node_dim + input_dim + hidden_edge_dim,
-                                     [hidden_node_dim] * 4,
+        self.node_network = make_mlp(hidden_node_dim + hidden_edge_dim,
+                                     [hidden_node_dim]*4,
                                      layer_norm=layer_norm)
 
         # The edge classifier computes final edge scores
-        self.edge_classifier = make_mlp(2 * hidden_node_dim,
+        self.edge_classifier = make_mlp(2*hidden_node_dim,
                                         [hidden_edge_dim, 1],
                                         output_activation=None)
 
@@ -58,8 +58,8 @@ class GNN(nn.Module):
         # Loop over graph iterations
         for i in range(self.n_graph_iters):
 
-            # Shortcut-connect input features
-            x = torch.cat([x, data.x], dim=1)
+            # Previous hidden state
+            x0 = x
 
             # Compute new edge features
             edge_inputs = torch.cat([x[send_idx], x[recv_idx]], dim=1)
@@ -71,6 +71,9 @@ class GNN(nn.Module):
             # Compute new node features
             node_inputs = torch.cat([x, aggr_messages], dim=1)
             x = self.node_network(node_inputs)
+
+            # Residual connection
+            x = x + x0
 
         # Compute final edge scores; use original edge directions only
         start_idx, end_idx = data.edge_index

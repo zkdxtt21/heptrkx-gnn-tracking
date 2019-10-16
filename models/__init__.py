@@ -15,8 +15,5 @@ def get_model(name, **model_args):
     elif name == 'mpnn':
         from .mpnn import GNN
         return GNN(**model_args)
-    elif name == 'resmpnn':
-        from .resmpnn import GNN
-        return GNN(**model_args)
     else:
         raise Exception('Model %s unknown' % name)
