@@ -1,4 +1,4 @@
-output_dir: ${SCRATCH}/heptrkx/results/agnn_006
+output_dir: ${SCRATCH}/heptrkx/results/agnn_007
 
 trainer:
     name: gnn_sparse
@@ -8,7 +8,7 @@ data:
     input_dir: ${SCRATCH}/heptrkx/data/hitgraphs_high_000
     n_train: 57344
     n_valid: 4096
-    real_weight: 3 #6.25  # 0.5 / 0.08
+    real_weight: 3
     batch_size: 4
     n_workers: 4
 
